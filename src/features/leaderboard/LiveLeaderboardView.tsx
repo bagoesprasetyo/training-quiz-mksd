@@ -13,10 +13,16 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
   participants,
   totalQuestions = 10 
 }) => {
-  const sorted = [...participants].sort((a, b) => {
-    if (b.total_score !== a.total_score) return b.total_score - a.total_score;
-    if (b.correct_count !== a.correct_count) return b.correct_count - a.correct_count;
-    return a.total_response_time_ms - b.total_response_time_ms;
+  const sorted = [...(participants || [])].sort((a, b) => {
+    const scoreA = a?.total_score || 0;
+    const scoreB = b?.total_score || 0;
+    const correctA = a?.correct_count || 0;
+    const correctB = b?.correct_count || 0;
+    const timeA = a?.total_response_time_ms || 0;
+    const timeB = b?.total_response_time_ms || 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    if (correctB !== correctA) return correctB - correctA;
+    return timeA - timeB;
   });
 
   return (
@@ -34,7 +40,7 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
       <div className="space-y-2.5">
         {sorted.map((p, idx) => {
           const rank = idx + 1;
-          const accuracy = totalQuestions > 0 ? Math.round((p.correct_count / totalQuestions) * 100) : 0;
+          const accuracy = totalQuestions > 0 ? Math.round(((p?.correct_count || 0) / totalQuestions) * 100) : 0;
 
           return (
             <motion.div
@@ -80,7 +86,7 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
                       )}
                     </p>
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
-                      <span>{p.correct_count} Correct</span>
+                      <span>{p?.correct_count || 0} Correct</span>
                       <span>•</span>
                       <span>{accuracy}% Accuracy</span>
                     </div>
@@ -90,7 +96,7 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
                 {/* Score */}
                 <div className="text-right shrink-0">
                   <p className="font-black text-lg text-[#0000FF] tracking-tight">
-                    {p.total_score.toLocaleString()} <span className="text-xs font-semibold text-slate-400">pts</span>
+                    {(p?.total_score || 0).toLocaleString()} <span className="text-xs font-semibold text-slate-400">pts</span>
                   </p>
                 </div>
               </Card>

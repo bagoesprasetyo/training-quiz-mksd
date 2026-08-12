@@ -16,10 +16,16 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
 }) => {
   const [revealStep, setRevealStep] = useState<number>(0);
 
-  const sorted = [...participants].sort((a, b) => {
-    if (b.total_score !== a.total_score) return b.total_score - a.total_score;
-    if (b.correct_count !== a.correct_count) return b.correct_count - a.correct_count;
-    return a.total_response_time_ms - b.total_response_time_ms;
+  const sorted = [...(participants || [])].sort((a, b) => {
+    const scoreA = a?.total_score || 0;
+    const scoreB = b?.total_score || 0;
+    const correctA = a?.correct_count || 0;
+    const correctB = b?.correct_count || 0;
+    const timeA = a?.total_response_time_ms || 0;
+    const timeB = b?.total_response_time_ms || 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    if (correctB !== correctA) return correctB - correctA;
+    return timeA - timeB;
   });
 
   const firstPlace = sorted[0];
@@ -80,7 +86,7 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
                   {secondPlace.nickname}
                 </h3>
                 <p className="text-xs font-bold text-[#0000FF]">
-                  {secondPlace.total_score.toLocaleString()} pts
+                  {(secondPlace.total_score || 0).toLocaleString()} pts
                 </p>
               </motion.div>
             )}
@@ -108,7 +114,7 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
                   {firstPlace.nickname}
                 </h3>
                 <p className="text-sm font-black text-emerald-600 bg-emerald-50 py-1 px-3 rounded-full inline-block">
-                  {firstPlace.total_score.toLocaleString()} pts
+                  {(firstPlace.total_score || 0).toLocaleString()} pts
                 </p>
               </motion.div>
             )}
@@ -136,7 +142,7 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
                   {thirdPlace.nickname}
                 </h3>
                 <p className="text-xs font-bold text-[#0000FF]">
-                  {thirdPlace.total_score.toLocaleString()} pts
+                  {(thirdPlace.total_score || 0).toLocaleString()} pts
                 </p>
               </motion.div>
             )}
@@ -175,7 +181,7 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-200/80 text-sm font-semibold text-slate-700">
                   {sorted.map((p, idx) => {
-                    const accuracy = totalQuestions > 0 ? Math.round((p.correct_count / totalQuestions) * 100) : 0;
+                    const accuracy = totalQuestions > 0 ? Math.round(((p?.correct_count || 0) / totalQuestions) * 100) : 0;
                     return (
                       <tr key={p.id} className="hover:bg-slate-50/50">
                         <td className="py-3.5 px-4 font-black text-slate-900">
@@ -185,10 +191,10 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
                           {p.nickname}
                         </td>
                         <td className="py-3.5 px-4 text-slate-500">{p.department || '-'}</td>
-                        <td className="py-3.5 px-4">{p.correct_count} / {totalQuestions}</td>
+                        <td className="py-3.5 px-4">{p?.correct_count || 0} / {totalQuestions}</td>
                         <td className="py-3.5 px-4">{accuracy}%</td>
                         <td className="py-3.5 px-4 text-right font-black text-[#0000FF]">
-                          {p.total_score.toLocaleString()} pts
+                          {(p?.total_score || 0).toLocaleString()} pts
                         </td>
                       </tr>
                     );

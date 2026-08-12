@@ -21,17 +21,23 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
   if (!currentParticipant) return null;
 
   // Calculate rank
-  const sorted = [...allParticipants].sort((a, b) => {
-    if (b.total_score !== a.total_score) return b.total_score - a.total_score;
-    if (b.correct_count !== a.correct_count) return b.correct_count - a.correct_count;
-    return a.total_response_time_ms - b.total_response_time_ms;
+  const sorted = [...(allParticipants || [])].sort((a, b) => {
+    const scoreA = a?.total_score || 0;
+    const scoreB = b?.total_score || 0;
+    const correctA = a?.correct_count || 0;
+    const correctB = b?.correct_count || 0;
+    const timeA = a?.total_response_time_ms || 0;
+    const timeB = b?.total_response_time_ms || 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    if (correctB !== correctA) return correctB - correctA;
+    return timeA - timeB;
   });
 
-  const rank = sorted.findIndex((p) => p.id === currentParticipant.id) + 1;
+  const rank = sorted.findIndex((p) => p.id === currentParticipant?.id) + 1 || 1;
   const total = sorted.length || 1;
 
-  const passingGrade = session.quiz?.passing_grade || 70;
-  const accuracy = totalQuestions > 0 ? Math.round((currentParticipant.correct_count / totalQuestions) * 100) : 0;
+  const passingGrade = session?.quiz?.passing_grade || 70;
+  const accuracy = totalQuestions > 0 ? Math.round(((currentParticipant?.correct_count || 0) / totalQuestions) * 100) : 0;
   const isPassed = accuracy >= passingGrade;
 
   return (
@@ -71,7 +77,7 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
               Your Final Score
             </span>
             <p className="text-4xl font-black tracking-tight">
-              {currentParticipant.total_score.toLocaleString()} <span className="text-base font-normal text-blue-200">pts</span>
+              {(currentParticipant?.total_score || 0).toLocaleString()} <span className="text-base font-normal text-blue-200">pts</span>
             </p>
             <p className="text-xs font-semibold text-blue-100 pt-1">
               Final Position: <span className="font-extrabold text-white text-sm">Rank #{rank} of {total}</span>
@@ -85,7 +91,7 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Correct
               </span>
               <p className="text-lg font-black text-slate-900">
-                {currentParticipant.correct_count} / {totalQuestions}
+                {currentParticipant?.correct_count || 0} / {totalQuestions}
               </p>
             </div>
 

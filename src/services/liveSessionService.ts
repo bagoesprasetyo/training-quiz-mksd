@@ -155,7 +155,7 @@ export const liveSessionService = {
     onParticipantChange: (participants: SessionParticipant[]) => void
   ) {
     // Initial fetch
-    this.getParticipants(sessionId).then(onParticipantChange);
+    this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
 
     const channel = supabase
       .channel(`participants:${sessionId}`)
@@ -165,16 +165,20 @@ export const liveSessionService = {
           event: '*',
           schema: 'public',
           table: 'session_participants',
-          filter: `session_id=eq.${sessionId}`,
         },
         () => {
-          // Refetch updated participant list
-          this.getParticipants(sessionId).then(onParticipantChange);
+          this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
         }
       )
       .subscribe();
 
+    // 1.2-second Polling fallback for 100% sync
+    const pollInterval = setInterval(() => {
+      this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
+    }, 1200);
+
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   },
@@ -184,23 +188,31 @@ export const liveSessionService = {
     sessionId: string,
     onStateChange: (session: LiveSession) => void
   ) {
+    // Initial fetch
+    this.getSessionById(sessionId).then(onStateChange).catch(() => {});
+
     const channel = supabase
       .channel(`session_state:${sessionId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'live_sessions',
-          filter: `id=eq.${sessionId}`,
         },
         () => {
-          this.getSessionById(sessionId).then(onStateChange);
+          this.getSessionById(sessionId).then(onStateChange).catch(() => {});
         }
       )
       .subscribe();
 
+    // 1.2-second Polling fallback for guaranteed state sync
+    const pollInterval = setInterval(() => {
+      this.getSessionById(sessionId).then(onStateChange).catch(() => {});
+    }, 1200);
+
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   },
