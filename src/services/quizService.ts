@@ -193,10 +193,19 @@ export const quizService = {
     const validIds: string[] = [];
 
     for (const q of localQuestions) {
-      if (q.id && UUID_REGEX.test(q.id)) {
-        savedQuestions.push(q);
-        validIds.push(q.id);
-      } else {
+      const isUuid = q.id && UUID_REGEX.test(q.id);
+      let realQuestion: Question | null = null;
+
+      if (isUuid) {
+        try {
+          await questionService.updateQuestion(q.id, q, q.options);
+          realQuestion = q;
+        } catch {
+          realQuestion = null;
+        }
+      }
+
+      if (!realQuestion) {
         try {
           const saved = await questionService.createQuestion(
             {
@@ -215,16 +224,34 @@ export const quizService = {
               sort_order: opt.sort_order,
             }))
           );
-          savedQuestions.push(saved);
-          validIds.push(saved.id);
+          realQuestion = saved;
         } catch {
           // ignore
         }
+      }
+
+      if (realQuestion) {
+        savedQuestions.push(realQuestion);
+        validIds.push(realQuestion.id);
       }
     }
 
     if (validIds.length > 0) {
       await this.updateQuizQuestionsOrder(quizId, validIds).catch(() => {});
+    }
+
+    // Update local draft storage with real UUID questions
+    try {
+      const draftStr = localStorage.getItem(`draft_quiz_${quizId}`);
+      if (draftStr) {
+        const parsed = JSON.parse(draftStr);
+        localStorage.setItem(`draft_quiz_${quizId}`, JSON.stringify({
+          ...parsed,
+          questions: savedQuestions,
+        }));
+      }
+    } catch {
+      // ignore
     }
 
     return savedQuestions;

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { quizService } from './quizService';
 import type { LiveSession, SessionParticipant } from '../types';
 
 export const liveSessionService = {
@@ -8,6 +9,19 @@ export const liveSessionService = {
   },
 
   async createSession(quizId: string): Promise<LiveSession> {
+    // Ensure draft questions from trainer's device are fully synced to Supabase before creating live session
+    try {
+      const draftStr = localStorage.getItem(`draft_quiz_${quizId}`);
+      if (draftStr) {
+        const parsed = JSON.parse(draftStr);
+        if (parsed.questions && parsed.questions.length > 0) {
+          await quizService.syncDraftQuestionsToSupabase(quizId, parsed.questions);
+        }
+      }
+    } catch (err) {
+      console.warn('Draft question sync before session creation warning:', err);
+    }
+
     // Get trainer ID: first try Supabase Auth session, then fall back to stored profile
     let trainerId: string | null = null;
 

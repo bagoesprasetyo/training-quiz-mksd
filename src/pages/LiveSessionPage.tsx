@@ -26,11 +26,33 @@ export const LiveSessionPage: React.FC = () => {
   }, [sessionId, initTrainerSession]);
 
   useEffect(() => {
-    if (session?.quiz_id) {
-      quizService.getQuizById(session.quiz_id).then(({ questions: qList }) => {
-        setQuestions(qList);
-      });
-    }
+    let timer: any;
+    let isCancelled = false;
+
+    const fetchQuestions = async () => {
+      if (session?.quiz_id && !isCancelled) {
+        try {
+          const { questions: qList } = await quizService.getQuizById(session.quiz_id);
+          if (!isCancelled) {
+            setQuestions(qList);
+            if (qList.length === 0) {
+              timer = setTimeout(fetchQuestions, 2500);
+            }
+          }
+        } catch {
+          if (!isCancelled) {
+            timer = setTimeout(fetchQuestions, 3000);
+          }
+        }
+      }
+    };
+
+    fetchQuestions();
+
+    return () => {
+      isCancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [session?.quiz_id]);
 
   if (loading) {
