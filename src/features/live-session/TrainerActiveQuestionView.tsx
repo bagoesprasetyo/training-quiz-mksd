@@ -28,10 +28,24 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
 
   if (quizQuestions.length === 0) {
     return (
-      <Card className="p-12 text-center space-y-4 border-2 border-blue-100 bg-white">
-        <div className="w-10 h-10 border-4 border-[#0000FF] border-t-transparent rounded-full animate-spin mx-auto" />
-        <h3 className="text-lg font-black text-slate-900">Memuat Pertanyaan Live Quiz...</h3>
-        <p className="text-xs text-slate-500 font-medium">Sedang mengambil daftar pertanyaan dari bank soal.</p>
+      <Card className="p-8 text-center space-y-4 border-2 border-amber-200 bg-amber-50/50 max-w-lg mx-auto my-12 rounded-3xl shadow-elevated">
+        <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto font-bold text-2xl">
+          ⚠️
+        </div>
+        <h3 className="text-xl font-black text-slate-900">Kuis Belum Memiliki Pertanyaan</h3>
+        <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+          Kuis ini belum memiliki pertanyaan tersimpan di database. Silakan buka Quiz Builder untuk menyimpan pertanyaan.
+        </p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Button
+            variant="primary"
+            size="md"
+            className="font-extrabold px-6"
+            onClick={() => window.location.href = `/dashboard/quiz/${session.quiz_id}`}
+          >
+            Buka Quiz Builder
+          </Button>
+        </div>
       </Card>
     );
   }

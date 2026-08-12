@@ -23,10 +23,14 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
   if (quizQuestions.length === 0) {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">
-        <Card className="p-12 text-center space-y-4 border-2 border-blue-100 bg-white max-w-md w-full">
-          <div className="w-10 h-10 border-4 border-[#0000FF] border-t-transparent rounded-full animate-spin mx-auto" />
-          <h3 className="text-lg font-black text-slate-900">Memuat Pertanyaan Kuis...</h3>
-          <p className="text-xs text-slate-500 font-medium">Mohon tunggu sejenak, pertanyaan akan muncul otomatis.</p>
+        <Card className="p-8 text-center space-y-4 border-2 border-amber-200 bg-amber-50/50 max-w-md w-full rounded-3xl shadow-elevated">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto font-bold text-2xl">
+            ⏳
+          </div>
+          <h3 className="text-lg font-black text-slate-900">Menunggu Pertanyaan Kuis...</h3>
+          <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+            Trainer belum mengunggah pertanyaan untuk kuis ini. Pertanyaan akan muncul otomatis jika sudah tersedia.
+          </p>
         </Card>
       </div>
     );

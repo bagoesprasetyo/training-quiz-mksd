@@ -65,6 +65,8 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
               loading: false,
               lastSavedAt: new Date().toLocaleTimeString(),
             });
+            // Auto sync draft questions to Supabase in background
+            get().saveQuiz().catch(() => {});
             return;
           }
         } catch {

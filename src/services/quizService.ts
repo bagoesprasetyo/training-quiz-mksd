@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { questionService } from './questionService';
 import type { Quiz, Question, QuestionOption } from '../types';
 
 export const quizService = {
@@ -44,12 +45,27 @@ export const quizService = {
 
     if (qqErr) throw qqErr;
 
-    const questions: Question[] = (quizQuestions || [])
+    let questions: Question[] = (quizQuestions || [])
       .filter((item: any) => item?.questions)
       .map((item: any) => ({
         ...item.questions,
         options: (item.questions.options || []).sort((a: QuestionOption, b: QuestionOption) => (a.sort_order || 0) - (b.sort_order || 0)),
       }));
+
+    // Recovery Fallback: If DB returns 0 questions, check local draft and sync to Supabase
+    if (questions.length === 0) {
+      try {
+        const localDraft = localStorage.getItem(`draft_quiz_${quizId}`);
+        if (localDraft) {
+          const parsed = JSON.parse(localDraft);
+          if (parsed.questions && parsed.questions.length > 0) {
+            questions = await this.syncDraftQuestionsToSupabase(quizId, parsed.questions);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
 
     return { quiz, questions };
   },
@@ -169,5 +185,48 @@ export const quizService = {
       const { error } = await supabase.from('quiz_questions').insert(entries);
       if (error) throw error;
     }
+  },
+
+  async syncDraftQuestionsToSupabase(quizId: string, localQuestions: Question[]): Promise<Question[]> {
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const savedQuestions: Question[] = [];
+    const validIds: string[] = [];
+
+    for (const q of localQuestions) {
+      if (q.id && UUID_REGEX.test(q.id)) {
+        savedQuestions.push(q);
+        validIds.push(q.id);
+      } else {
+        try {
+          const saved = await questionService.createQuestion(
+            {
+              question_text: q.question_text,
+              question_type: q.question_type,
+              points_type: q.points_type,
+              custom_points: q.custom_points,
+              time_limit: q.time_limit,
+              difficulty: q.difficulty,
+              shuffle_answers: q.shuffle_answers,
+              is_bank_question: false,
+            },
+            (q.options || []).map((opt) => ({
+              option_text: opt.option_text,
+              is_correct: opt.is_correct,
+              sort_order: opt.sort_order,
+            }))
+          );
+          savedQuestions.push(saved);
+          validIds.push(saved.id);
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (validIds.length > 0) {
+      await this.updateQuizQuestionsOrder(quizId, validIds).catch(() => {});
+    }
+
+    return savedQuestions;
   },
 };
