@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/Badge';
 import { SynchronizedTimer } from '../../components/ui/SynchronizedTimer';
 import { useLiveSessionStore } from '../../store/liveSessionStore';
 import { liveQuizEngineService } from '../../services/liveQuizEngineService';
+import { liveSessionService } from '../../services/liveSessionService';
 import { useToast } from '../../components/ui/ToastProvider';
 import type { Question, ParticipantAnswer } from '../../types';
 
@@ -57,8 +58,8 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
   const handleNextQuestion = async () => {
     if (!session) return;
     if (isLastQuestion) {
-      await liveQuizEngineService.pauseSession(session.id);
-      showToast('Sudah mencapai pertanyaan terakhir!', 'info');
+      await liveSessionService.endLiveSession(session.id);
+      showToast('Kuis Selesai! Menampilkan Papan Peringkat Akhir...', 'success');
     } else {
       await liveQuizEngineService.nextQuestion(session.id, currentIndex + 1);
     }
