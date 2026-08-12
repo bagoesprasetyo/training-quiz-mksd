@@ -461,9 +461,12 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
       await quizService.updateQuiz(quiz.id, { title: quiz.title, status: quiz.status || 'draft' });
 
       const savedIds: string[] = [];
+      // Map: localId -> savedSupabaseQuestion (to replace local IDs in store state)
+      const localToSaved: { localId: string; saved: Question }[] = [];
 
       for (const q of questions) {
-        const isLocal = !q.id || q.id.startsWith('q-local') || q.id.startsWith('q-fallback') || q.id.startsWith('q-copy') || q.id.startsWith('q-');
+        const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const isLocal = !q.id || !UUID_REGEX.test(q.id);
 
         if (isLocal) {
           // Persist local-only questions to Supabase for the first time
@@ -486,8 +489,9 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
               }))
             );
             savedIds.push(saved.id);
+            localToSaved.push({ localId: q.id, saved });
           } catch {
-            // Skip if failed
+            // Skip if failed — don't add to savedIds
           }
         } else {
           await questionService.updateQuestion(q.id, q, q.options).catch(() => {});
@@ -495,7 +499,16 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
         }
       }
 
-      // Update quiz_questions junction table order with all real IDs
+      // Replace local temp IDs with real Supabase UUIDs in store state
+      if (localToSaved.length > 0) {
+        const updatedQuestions = get().questions.map((q) => {
+          const replaced = localToSaved.find((r) => r.localId === q.id);
+          return replaced ? replaced.saved : q;
+        });
+        set({ questions: updatedQuestions });
+      }
+
+      // Update quiz_questions junction table order with all real UUIDs
       if (savedIds.length > 0) {
         await quizService.updateQuizQuestionsOrder(quiz.id, savedIds).catch(() => {});
       }
