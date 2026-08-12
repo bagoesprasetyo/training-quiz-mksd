@@ -79,6 +79,31 @@ export const quizService = {
       // ignore
     }
 
+    if (!userId) {
+      try {
+        const stored = localStorage.getItem('mks_active_user');
+        if (stored) {
+          const profile = JSON.parse(stored);
+          userId = profile?.id || null;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Verify if userId exists in profiles table
+    let validUserId: string | null = null;
+    if (userId) {
+      try {
+        const { data: prof } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+        if (prof?.id) {
+          validUserId = prof.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const insertPayload: any = {
       title: quizData.title || 'Untitled Training Quiz',
       description: quizData.description || '',
@@ -88,15 +113,27 @@ export const quizService = {
       status: 'draft',
     };
 
-    if (userId) {
-      insertPayload.created_by = userId;
+    if (validUserId) {
+      insertPayload.created_by = validUserId;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('quizzes')
       .insert(insertPayload)
       .select()
       .single();
+
+    // Fallback: If foreign key error occurs, retry without created_by
+    if (error && (error.code === '23503' || error.message?.includes('foreign key constraint'))) {
+      delete insertPayload.created_by;
+      const res = await supabase
+        .from('quizzes')
+        .insert(insertPayload)
+        .select()
+        .single();
+      data = res.data;
+      error = res.error;
+    }
 
     if (error) throw error;
     return data;

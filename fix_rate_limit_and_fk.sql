@@ -150,12 +150,10 @@ DROP POLICY IF EXISTS "Allow all on question_options" ON public.question_options
 CREATE POLICY "Allow all on question_options" ON public.question_options
     FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
--- 5. HAPUS FOREIGN KEY CONSTRAINT PADA live_sessions.trainer_id
---    (Agar trainer yang login via fallback profile bisa membuat sesi live)
+-- 5. HAPUS STRICT FOREIGN KEY CONSTRAINTS AGAR BEBAS MEMBUAT KUIS & SOAL
 ALTER TABLE public.live_sessions DROP CONSTRAINT IF EXISTS live_sessions_trainer_id_fkey;
-
--- Buat kembali FK tapi tidak strict (allow NULL trainer_id or bypass with ON DELETE SET NULL)
--- Atau biarkan saja tanpa FK agar flexibel
+ALTER TABLE public.quizzes DROP CONSTRAINT IF EXISTS quizzes_created_by_fkey;
+ALTER TABLE public.questions DROP CONSTRAINT IF EXISTS questions_created_by_fkey;
 
 -- 6. PERBAIKI RLS LIVE SESSIONS TABLE
 ALTER TABLE public.live_sessions ENABLE ROW LEVEL SECURITY;

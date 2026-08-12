@@ -54,24 +54,67 @@ export const questionService = {
       // ignore
     }
 
-    const insertPayload: any = {
-      ...questionData,
-    };
+    if (!userId) {
+      try {
+        const stored = localStorage.getItem('mks_active_user');
+        if (stored) {
+          const profile = JSON.parse(stored);
+          userId = profile?.id || null;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Verify if userId exists in profiles table
+    let validUserId: string | null = null;
     if (userId) {
-      insertPayload.created_by = userId;
+      try {
+        const { data: prof } = await supabase.from('profiles').select('id').eq('id', userId).maybeSingle();
+        if (prof?.id) {
+          validUserId = prof.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Strip temp/non-column fields (id like q-local-*, created_at, updated_at, options)
+    const { id, created_at, updated_at, options: optPayload, ...restQuestionData } = questionData as any;
+
+    const insertPayload: any = {
+      ...restQuestionData,
+    };
+
+    if (validUserId) {
+      insertPayload.created_by = validUserId;
+    } else {
+      delete insertPayload.created_by;
     }
 
     // 1. Insert question
-    const { data: newQuestion, error: qErr } = await supabase
+    let { data: newQuestion, error: qErr } = await supabase
       .from('questions')
       .insert(insertPayload)
       .select()
       .single();
 
+    // Fallback: If foreign key error occurs, retry without created_by
+    if (qErr && (qErr.code === '23503' || qErr.message?.includes('foreign key constraint'))) {
+      delete insertPayload.created_by;
+      const res = await supabase
+        .from('questions')
+        .insert(insertPayload)
+        .select()
+        .single();
+      newQuestion = res.data;
+      qErr = res.error;
+    }
+
     if (qErr) throw qErr;
 
     // 2. Insert options if provided
-    if (options.length > 0) {
+    if (options.length > 0 && newQuestion) {
       const optionsToInsert = options.map((opt, index) => ({
         question_id: newQuestion.id,
         option_text: opt.option_text || `Option ${index + 1}`,
