@@ -23,7 +23,17 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
   const { showToast } = useToast();
   const [answers, setAnswers] = useState<ParticipantAnswer[]>([]);
 
-  if (!session || quizQuestions.length === 0) return null;
+  if (!session) return null;
+
+  if (quizQuestions.length === 0) {
+    return (
+      <Card className="p-12 text-center space-y-4 border-2 border-blue-100 bg-white">
+        <div className="w-10 h-10 border-4 border-[#0000FF] border-t-transparent rounded-full animate-spin mx-auto" />
+        <h3 className="text-lg font-black text-slate-900">Memuat Pertanyaan Live Quiz...</h3>
+        <p className="text-xs text-slate-500 font-medium">Sedang mengambil daftar pertanyaan dari bank soal.</p>
+      </Card>
+    );
+  }
 
   const currentIndex = session.current_question_index || 0;
   const currentQ = quizQuestions[currentIndex] || quizQuestions[0];

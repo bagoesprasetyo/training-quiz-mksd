@@ -33,6 +33,12 @@ export const liveSessionService = {
 
     if (!trainerId) throw new Error('Trainer must be logged in to start a session');
 
+    // Ensure trainerId is a valid UUID format for PostgreSQL UUID column
+    const isTrainerUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trainerId);
+    if (!isTrainerUuid) {
+      trainerId = '00000000-0000-0000-0000-000000000000';
+    }
+
     // Ensure unique PIN
     let pinCode = this.generatePinCode();
     let isUnique = false;

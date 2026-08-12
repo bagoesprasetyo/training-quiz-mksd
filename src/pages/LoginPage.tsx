@@ -74,7 +74,7 @@ export const LoginPage: React.FC = () => {
       const isAdminEmail = cleanEmail.includes('admin');
 
       const autoProfile: UserProfile = {
-        id: `user-${Date.now()}`,
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-0000-0000-000000000001',
         email: cleanEmail,
         full_name: cleanEmail.split('@')[0].toUpperCase(),
         role: isAdminEmail ? 'administrator' : 'trainer',

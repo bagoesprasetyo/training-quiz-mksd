@@ -44,10 +44,30 @@ export const quizService = {
 
     if (qqErr) throw qqErr;
 
-    const questions: Question[] = (quizQuestions || []).map((item: any) => ({
-      ...item.questions,
-      options: (item.questions.options || []).sort((a: QuestionOption, b: QuestionOption) => a.sort_order - b.sort_order),
-    }));
+    const questions: Question[] = (quizQuestions || [])
+      .filter((item: any) => item?.questions)
+      .map((item: any) => ({
+        ...item.questions,
+        options: (item.questions.options || []).sort((a: QuestionOption, b: QuestionOption) => (a.sort_order || 0) - (b.sort_order || 0)),
+      }));
+
+    // Fallback: If quiz_questions junction is empty, try fetching questions directly from bank
+    if (questions.length === 0) {
+      const { data: directQs } = await supabase
+        .from('questions')
+        .select('*, options:question_options(*)')
+        .limit(10);
+
+      if (directQs && directQs.length > 0) {
+        return {
+          quiz,
+          questions: directQs.map((q: any) => ({
+            ...q,
+            options: (q.options || []).sort((a: QuestionOption, b: QuestionOption) => (a.sort_order || 0) - (b.sort_order || 0)),
+          })),
+        };
+      }
+    }
 
     return { quiz, questions };
   },
