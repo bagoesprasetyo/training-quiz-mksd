@@ -28,55 +28,75 @@ export const useLiveSessionStore = create<LiveSessionState>((set, get) => ({
   setCurrentParticipant: (currentParticipant) => set({ currentParticipant }),
 
   initTrainerSession: async (sessionId: string) => {
-    set({ loading: true });
-    const sessionData = await liveSessionService.getSessionById(sessionId);
-    set({ session: sessionData });
+    set({ loading: true, session: null });
+    try {
+      const sessionData = await liveSessionService.getSessionById(sessionId);
+      set({ session: sessionData });
 
-    // Subscribe to participants list updates
-    const unsubParticipants = liveSessionService.subscribeToParticipants(
-      sessionId,
-      (participants) => set({ participants, loading: false })
-    );
+      // Load initial participants
+      const initialParticipants = await liveSessionService.getParticipants(sessionData.id);
+      set({ participants: initialParticipants, loading: false });
 
-    // Subscribe to session state updates
-    const unsubState = liveSessionService.subscribeToSessionState(
-      sessionId,
-      (updatedSession) => set({ session: updatedSession })
-    );
+      // Subscribe to participants list updates
+      const unsubParticipants = liveSessionService.subscribeToParticipants(
+        sessionData.id,
+        (participants) => set({ participants, loading: false })
+      );
 
-    return () => {
-      unsubParticipants();
-      unsubState();
-    };
+      // Subscribe to session state updates
+      const unsubState = liveSessionService.subscribeToSessionState(
+        sessionData.id,
+        (updatedSession) => set({ session: updatedSession, loading: false })
+      );
+
+      return () => {
+        unsubParticipants();
+        unsubState();
+      };
+    } catch (err) {
+      console.error('Failed to init trainer session:', err);
+      set({ session: null, loading: false });
+      return () => {};
+    }
   },
 
   initParticipantSession: async (sessionId: string) => {
-    set({ loading: true });
-    const sessionData = await liveSessionService.getSessionById(sessionId);
-    set({ session: sessionData });
+    set({ loading: true, session: null });
+    try {
+      const sessionData = await liveSessionService.getSessionById(sessionId);
+      set({ session: sessionData });
 
-    // Load stored participant info from sessionStorage
-    const stored = sessionStorage.getItem('participant_info');
-    if (stored) {
-      set({ currentParticipant: JSON.parse(stored) });
+      // Load stored participant info from sessionStorage
+      const stored = sessionStorage.getItem('participant_info');
+      if (stored) {
+        set({ currentParticipant: JSON.parse(stored) });
+      }
+
+      // Load initial participants
+      const initialParticipants = await liveSessionService.getParticipants(sessionData.id);
+      set({ participants: initialParticipants, loading: false });
+
+      // Subscribe to session state
+      const unsubState = liveSessionService.subscribeToSessionState(
+        sessionData.id,
+        (updatedSession) => set({ session: updatedSession, loading: false })
+      );
+
+      // Subscribe to participant count
+      const unsubParticipants = liveSessionService.subscribeToParticipants(
+        sessionData.id,
+        (participants) => set({ participants, loading: false })
+      );
+
+      return () => {
+        unsubState();
+        unsubParticipants();
+      };
+    } catch (err) {
+      console.error('Failed to init participant session:', err);
+      set({ session: null, loading: false });
+      return () => {};
     }
-
-    // Subscribe to session state (to detect when trainer clicks START QUIZ)
-    const unsubState = liveSessionService.subscribeToSessionState(
-      sessionId,
-      (updatedSession) => set({ session: updatedSession, loading: false })
-    );
-
-    // Also subscribe to participant count
-    const unsubParticipants = liveSessionService.subscribeToParticipants(
-      sessionId,
-      (participants) => set({ participants, loading: false })
-    );
-
-    return () => {
-      unsubState();
-      unsubParticipants();
-    };
   },
 
   startQuiz: async () => {

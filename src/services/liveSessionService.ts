@@ -71,11 +71,26 @@ export const liveSessionService = {
 
 
   async getSessionById(sessionId: string): Promise<LiveSession> {
-    const { data, error } = await supabase
-      .from('live_sessions')
-      .select('*, quiz:quizzes(*)')
-      .eq('id', sessionId)
-      .single();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId);
+    
+    let query = supabase.from('live_sessions').select('*, quiz:quizzes(*)');
+    if (isUuid) {
+      query = query.eq('id', sessionId);
+    } else {
+      query = query.eq('pin_code', sessionId);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error && isUuid) {
+      const { data: pinData, error: pinErr } = await supabase
+        .from('live_sessions')
+        .select('*, quiz:quizzes(*)')
+        .eq('pin_code', sessionId)
+        .single();
+      if (!pinErr && pinData) return pinData;
+      throw error;
+    }
 
     if (error) throw error;
     return data;
