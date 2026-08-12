@@ -243,31 +243,63 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
     set({ autoSaveStatus: 'saving' });
 
     const target = questions[index];
-    const newOptions = (target.options || []).map((opt) => ({
-      id: `opt-copy-${Date.now()}-${opt.sort_order}`,
-      question_id: `q-copy-${Date.now()}`,
-      option_text: opt.option_text,
-      option_image_url: opt.option_image_url,
-      is_correct: opt.is_correct,
-      sort_order: opt.sort_order,
-    }));
+    const targetOptions = target.options || [];
 
-    const duplicated: Question = {
-      ...target,
-      id: `q-copy-${Date.now()}`,
-      question_text: `${target.question_text} (Copy)`,
-      options: newOptions,
-    };
+    try {
+      // Save duplicated question to Supabase
+      const savedDup = await questionService.createQuestion(
+        {
+          question_text: `${target.question_text} (Copy)`,
+          question_type: target.question_type,
+          points_type: target.points_type,
+          custom_points: target.custom_points,
+          time_limit: target.time_limit,
+          difficulty: target.difficulty,
+          shuffle_answers: target.shuffle_answers,
+          is_bank_question: false,
+        },
+        targetOptions.map((opt) => ({
+          option_text: opt.option_text,
+          is_correct: opt.is_correct,
+          sort_order: opt.sort_order,
+        }))
+      );
 
-    const updatedQuestions = [...questions];
-    updatedQuestions.splice(index + 1, 0, duplicated);
+      const updatedQuestions = [...questions];
+      updatedQuestions.splice(index + 1, 0, savedDup);
 
-    set({
-      questions: updatedQuestions,
-      activeQuestionIndex: index + 1,
-      autoSaveStatus: 'saved',
-      lastSavedAt: new Date().toLocaleTimeString(),
-    });
+      set({
+        questions: updatedQuestions,
+        activeQuestionIndex: index + 1,
+        autoSaveStatus: 'saved',
+        lastSavedAt: new Date().toLocaleTimeString(),
+      });
+
+      await quizService.updateQuizQuestionsOrder(quiz.id, updatedQuestions.map((q) => q.id));
+    } catch {
+      // In-memory fallback
+      const now = Date.now();
+      const duplicated: Question = {
+        ...target,
+        id: `q-copy-${now}`,
+        question_text: `${target.question_text} (Copy)`,
+        options: targetOptions.map((opt, i) => ({
+          ...opt,
+          id: `opt-copy-${now}-${i}`,
+          question_id: `q-copy-${now}`,
+        })),
+      };
+
+      const updatedQuestions = [...questions];
+      updatedQuestions.splice(index + 1, 0, duplicated);
+
+      set({
+        questions: updatedQuestions,
+        activeQuestionIndex: index + 1,
+        autoSaveStatus: 'saved',
+        lastSavedAt: new Date().toLocaleTimeString(),
+      });
+    }
   },
 
   deleteQuestion: async (index: number) => {
@@ -276,6 +308,7 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
 
     set({ autoSaveStatus: 'saving' });
 
+    const questionToDelete = questions[index];
     const updatedQuestions = questions.filter((_, i) => i !== index);
     const newActiveIndex = activeQuestionIndex >= updatedQuestions.length ? updatedQuestions.length - 1 : activeQuestionIndex;
 
@@ -285,6 +318,21 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
       autoSaveStatus: 'saved',
       lastSavedAt: new Date().toLocaleTimeString(),
     });
+
+    // Sync deletion to Supabase
+    try {
+      // Remove from quiz_questions junction table
+      await quizService.updateQuizQuestionsOrder(
+        quiz.id,
+        updatedQuestions.map((q) => q.id).filter((id) => !id.startsWith('q-local') && !id.startsWith('q-fallback') && !id.startsWith('q-copy') && !id.startsWith('q-'))
+      );
+      // Delete question from DB if it has a real UUID
+      if (questionToDelete.id && !questionToDelete.id.startsWith('q-')) {
+        await questionService.deleteQuestion(questionToDelete.id);
+      }
+    } catch {
+      // ignore
+    }
   },
 
   reorderQuestions: async (newQuestions: Question[]) => {
@@ -412,10 +460,44 @@ export const useQuizBuilderStore = create<QuizBuilderState>((set, get) => ({
     try {
       await quizService.updateQuiz(quiz.id, { title: quiz.title, status: quiz.status || 'draft' });
 
+      const savedIds: string[] = [];
+
       for (const q of questions) {
-        if (q.id && !q.id.startsWith('q-local') && !q.id.startsWith('q-fallback')) {
-          await questionService.updateQuestion(q.id, q, q.options);
+        const isLocal = !q.id || q.id.startsWith('q-local') || q.id.startsWith('q-fallback') || q.id.startsWith('q-copy') || q.id.startsWith('q-');
+
+        if (isLocal) {
+          // Persist local-only questions to Supabase for the first time
+          try {
+            const saved = await questionService.createQuestion(
+              {
+                question_text: q.question_text,
+                question_type: q.question_type,
+                points_type: q.points_type,
+                custom_points: q.custom_points,
+                time_limit: q.time_limit,
+                difficulty: q.difficulty,
+                shuffle_answers: q.shuffle_answers,
+                is_bank_question: false,
+              },
+              (q.options || []).map((opt) => ({
+                option_text: opt.option_text,
+                is_correct: opt.is_correct,
+                sort_order: opt.sort_order,
+              }))
+            );
+            savedIds.push(saved.id);
+          } catch {
+            // Skip if failed
+          }
+        } else {
+          await questionService.updateQuestion(q.id, q, q.options).catch(() => {});
+          savedIds.push(q.id);
         }
+      }
+
+      // Update quiz_questions junction table order with all real IDs
+      if (savedIds.length > 0) {
+        await quizService.updateQuizQuestionsOrder(quiz.id, savedIds).catch(() => {});
       }
 
       set({ autoSaveStatus: 'saved', lastSavedAt: new Date().toLocaleTimeString() });
