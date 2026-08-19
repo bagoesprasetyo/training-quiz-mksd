@@ -107,7 +107,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-blue-50/40 via-white to-white overflow-hidden relative">
-      <motion.div 
+      <motion.div
         className="w-full max-w-[430px]"
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -122,13 +122,10 @@ export const LoginPage: React.FC = () => {
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Kembali ke Beranda</span>
           </Link>
-          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
-            Trainer Sign In
-          </span>
         </div>
 
         <Card className="border-2 border-blue-100 p-6 sm:p-7 shadow-elevated bg-white rounded-3xl">
-          
+
           {/* Brand Logo Header: PT MULTIKARYA SINARDINAMIKA */}
           <div className="flex flex-col items-center text-center space-y-2 mb-5">
             <CompanyLogo size="md" />
@@ -141,7 +138,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-4 p-3 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-600 font-bold flex items-center gap-2"
@@ -172,10 +169,10 @@ export const LoginPage: React.FC = () => {
               required
             />
 
-            <Button 
-              type="submit" 
-              variant="primary" 
-              size="lg" 
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
               className="w-full font-extrabold py-3 shadow-md shadow-blue-500/25 mt-1"
               isLoading={loading}
               rightIcon={<ArrowRight className="w-4 h-4" />}

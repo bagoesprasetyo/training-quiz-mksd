@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate, Link } from 'react-router-dom';
-import { Hash, Menu } from 'lucide-react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import { Sidebar } from '../components/shared/Sidebar';
-import { Button } from '../components/ui/Button';
 import { useAuthStore } from '../store/authStore';
 
 export const DashboardLayout: React.FC = () => {
@@ -53,26 +52,6 @@ export const DashboardLayout: React.FC = () => {
             <span className="font-extrabold text-slate-900 text-xs sm:text-sm">
               Corporate Training Portal
             </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link to="/join">
-              <Button variant="outline" size="sm" leftIcon={<Hash className="w-4 h-4 text-[#0000FF]" />}>
-                <span className="hidden sm:inline">Join with </span>PIN
-              </Button>
-            </Link>
-
-            <div className="flex items-center gap-2.5 pl-3 border-l border-blue-100">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0000FF] font-bold text-xs flex items-center justify-center border border-blue-200 shrink-0">
-                {user?.full_name?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <div className="hidden md:flex flex-col">
-                <span className="text-xs font-bold text-slate-900 leading-tight">
-                  {user?.full_name}
-                </span>
-                <span className="text-[10px] text-blue-600 font-semibold uppercase">{user?.role}</span>
-              </div>
-            </div>
           </div>
         </header>
 
