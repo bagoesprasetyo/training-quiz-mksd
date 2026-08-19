@@ -14,7 +14,18 @@ export const liveQuizEngineService = {
   ): Promise<{ is_correct: boolean; score_earned: number }> {
     const isOptionCorrect = Boolean(isCorrect);
     const score = isOptionCorrect ? Number(pointsEarned || 100) : 0;
-    const responseTime = Number(responseTimeMs || 1000);
+    const responseTime = Math.max(100, Number(responseTimeMs || 1000));
+
+    console.log({
+      event: 'ANSWER_SUBMITTED',
+      sessionId,
+      participantId,
+      questionId,
+      selectedOptionId,
+      isCorrect: isOptionCorrect,
+      pointsEarned: score,
+      responseTime: (responseTime / 1000).toFixed(2),
+    });
 
     // 1. Direct Score Accumulation in session_participants FIRST
     try {
@@ -42,7 +53,7 @@ export const liveQuizEngineService = {
       console.warn('Error updating session_participants score:', err);
     }
 
-    // 2. Safe record in participant_answers without onConflict constraint requirement
+    // 2. Safe record in participant_answers
     try {
       const { data: existingAnswer } = await supabase
         .from('participant_answers')

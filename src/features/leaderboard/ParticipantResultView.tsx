@@ -32,35 +32,67 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
   const [liveParticipant, setLiveParticipant] = useState<SessionParticipant | null>(
     (allParticipants || []).find((p) => p.id === currentParticipant?.id) || currentParticipant
   );
+  const [liveParticipantsList, setLiveParticipantsList] = useState<SessionParticipant[]>(allParticipants || []);
 
-  // Sync with allParticipants or fetch fresh from Supabase on mount
+  // Fetch complete aggregated results from Supabase tables
   useEffect(() => {
-    const found = (allParticipants || []).find((p) => p.id === currentParticipant?.id);
-    if (found) {
-      setLiveParticipant(found);
-    }
-  }, [allParticipants, currentParticipant?.id]);
+    if (session?.id && currentParticipant?.id) {
+      Promise.all([
+        supabase
+          .from('session_participants')
+          .select('*')
+          .eq('session_id', session.id),
+        supabase
+          .from('participant_answers')
+          .select('*')
+          .eq('session_id', session.id),
+      ]).then(([partRes, ansRes]) => {
+        const pList = partRes.data || [];
+        const aList = ansRes.data || [];
 
-  useEffect(() => {
-    if (currentParticipant?.id) {
-      supabase
-        .from('session_participants')
-        .select('*')
-        .eq('id', currentParticipant.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) {
-            setLiveParticipant(data);
-          }
+        const syncedList = pList.map((p) => {
+          const pAnswers = aList.filter((a) => a.participant_id === p.id);
+          if (pAnswers.length === 0) return p;
+
+          const totalScore = pAnswers.reduce((sum, a) => sum + (a.score_earned || 0), 0);
+          const correctCount = pAnswers.filter((a) => a.is_correct).length;
+          const wrongCount = pAnswers.filter((a) => !a.is_correct).length;
+          const totalTime = pAnswers.reduce((sum, a) => sum + (a.response_time_ms || 0), 0);
+
+          return {
+            ...p,
+            total_score: Math.max(totalScore, p.total_score || 0),
+            correct_count: Math.max(correctCount, p.correct_count || 0),
+            wrong_count: wrongCount,
+            total_response_time_ms: Math.max(totalTime, p.total_response_time_ms || 0),
+          };
         });
+
+        if (syncedList.length > 0) {
+          setLiveParticipantsList(syncedList);
+          const me = syncedList.find((p) => p.id === currentParticipant.id);
+          if (me) {
+            setLiveParticipant(me);
+            console.log({
+              event: 'PARTICIPANT_RESULT_LOADED',
+              participantId: currentParticipant.id,
+              finalResult: me,
+            });
+          }
+        }
+      }).catch((err) => {
+        console.warn('Error fetching participant final results:', err);
+      });
     }
-  }, [currentParticipant?.id]);
+  }, [session?.id, currentParticipant?.id]);
 
   const activeParticipant = liveParticipant || currentParticipant;
   if (!activeParticipant) return null;
 
+  const targetList = liveParticipantsList.length > 0 ? liveParticipantsList : allParticipants;
+
   // Calculate rank
-  const sorted = [...(allParticipants || [])].sort((a, b) => {
+  const sorted = [...(targetList || [])].sort((a, b) => {
     const scoreA = a?.total_score || 0;
     const scoreB = b?.total_score || 0;
     const correctA = a?.correct_count || 0;
@@ -79,8 +111,11 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
   const passingGrade = session?.quiz?.passing_grade || 70;
   const accuracy = Math.round(((activeParticipant?.correct_count || 0) / actualTotal) * 100);
   const isPassed = accuracy >= passingGrade;
-  const avgTime = (activeParticipant?.correct_count || 0) > 0
-    ? ((activeParticipant?.total_response_time_ms || 0) / actualTotal / 1000).toFixed(1)
+  const totalAnsweredCount = (activeParticipant?.correct_count || 0) + (activeParticipant?.wrong_count || 0);
+  const avgTime = totalAnsweredCount > 0
+    ? ((activeParticipant?.total_response_time_ms || 0) / totalAnsweredCount / 1000).toFixed(1)
+    : (activeParticipant?.correct_count || 0) > 0
+    ? ((activeParticipant?.total_response_time_ms || 0) / (activeParticipant?.correct_count || 1) / 1000).toFixed(1)
     : '0';
 
   // Trigger confetti and sounds on mount

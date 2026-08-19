@@ -169,6 +169,61 @@ export const liveSessionService = {
   },
 
   async endLiveSession(sessionId: string): Promise<void> {
+    console.log({
+      event: 'FINALIZE_SESSION',
+      sessionId,
+    });
+
+    // 1. Fetch all participant answers recorded for this session from Supabase
+    try {
+      const { data: answers } = await supabase
+        .from('participant_answers')
+        .select('*')
+        .eq('session_id', sessionId);
+
+      const { data: participants } = await supabase
+        .from('session_participants')
+        .select('*')
+        .eq('session_id', sessionId);
+
+      if (participants && participants.length > 0) {
+        for (const p of participants) {
+          const pAnswers = (answers || []).filter((a) => a.participant_id === p.id);
+          const totalScore = pAnswers.reduce((sum, a) => sum + (a.score_earned || 0), 0);
+          const correctCount = pAnswers.filter((a) => a.is_correct).length;
+          const wrongCount = pAnswers.filter((a) => !a.is_correct).length;
+          const totalResponseTimeMs = pAnswers.reduce((sum, a) => sum + (a.response_time_ms || 0), 0);
+          const avgResponseTime = pAnswers.length > 0 ? (totalResponseTimeMs / pAnswers.length / 1000).toFixed(1) : '0';
+          const accuracy = pAnswers.length > 0 ? Math.round((correctCount / pAnswers.length) * 100) : 0;
+
+          console.log({
+            event: 'AGGREGATED_PARTICIPANT_RESULT',
+            participantId: p.id,
+            nickname: p.nickname,
+            totalScore: Math.max(totalScore, p.total_score || 0),
+            correctCount: Math.max(correctCount, p.correct_count || 0),
+            wrongCount,
+            accuracy,
+            avgResponseTime,
+          });
+
+          // Sync aggregated values into session_participants
+          await supabase
+            .from('session_participants')
+            .update({
+              total_score: Math.max(totalScore, p.total_score || 0),
+              correct_count: Math.max(correctCount, p.correct_count || 0),
+              wrong_count: wrongCount,
+              total_response_time_ms: Math.max(totalResponseTimeMs, p.total_response_time_ms || 0),
+            })
+            .eq('id', p.id);
+        }
+      }
+    } catch (aggErr) {
+      console.warn('Error during session finalization aggregation:', aggErr);
+    }
+
+    // 2. Mark session as finished in database
     const { error } = await supabase
       .from('live_sessions')
       .update({

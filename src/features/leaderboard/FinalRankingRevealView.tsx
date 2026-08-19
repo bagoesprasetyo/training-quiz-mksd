@@ -6,7 +6,7 @@ import { AnimatedNumber } from '../../components/game/AnimatedNumber';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useLiveSessionStore } from '../../store/liveSessionStore';
-import { liveSessionService } from '../../services/liveSessionService';
+import { supabase } from '../../services/supabase';
 import type { SessionParticipant } from '../../types';
 
 interface FinalRankingRevealViewProps {
@@ -57,13 +57,45 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
     }
   }, [participants]);
 
+  // Direct aggregation from Supabase database for the active session
   useEffect(() => {
     if (session?.id) {
-      liveSessionService.getParticipants(session.id).then((fresh) => {
-        if (fresh && fresh.length > 0) {
-          setLiveParticipants(fresh);
+      Promise.all([
+        supabase.from('session_participants').select('*').eq('session_id', session.id),
+        supabase.from('participant_answers').select('*').eq('session_id', session.id),
+      ]).then(([partRes, ansRes]) => {
+        const pList = partRes.data || [];
+        const aList = ansRes.data || [];
+
+        const syncedList = pList.map((p) => {
+          const pAnswers = aList.filter((a) => a.participant_id === p.id);
+          if (pAnswers.length === 0) return p;
+
+          const totalScore = pAnswers.reduce((sum, a) => sum + (a.score_earned || 0), 0);
+          const correctCount = pAnswers.filter((a) => a.is_correct).length;
+          const wrongCount = pAnswers.filter((a) => !a.is_correct).length;
+          const totalTime = pAnswers.reduce((sum, a) => sum + (a.response_time_ms || 0), 0);
+
+          return {
+            ...p,
+            total_score: Math.max(totalScore, p.total_score || 0),
+            correct_count: Math.max(correctCount, p.correct_count || 0),
+            wrong_count: wrongCount,
+            total_response_time_ms: Math.max(totalTime, p.total_response_time_ms || 0),
+          };
+        });
+
+        if (syncedList.length > 0) {
+          setLiveParticipants(syncedList);
+          console.log({
+            event: 'TRAINER_LEADERBOARD_LOADED',
+            sessionId: session.id,
+            leaderboard: syncedList,
+          });
         }
-      }).catch(() => {});
+      }).catch((err) => {
+        console.warn('Error fetching trainer leaderboard:', err);
+      });
     }
   }, [session?.id]);
 
