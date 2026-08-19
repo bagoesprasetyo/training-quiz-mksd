@@ -83,9 +83,8 @@ CREATE TABLE IF NOT EXISTS public.questions (
 -- RLS for Questions
 ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Questions viewable by authenticated users" 
+CREATE POLICY "Allow all to view questions" 
   ON public.questions FOR SELECT 
-  TO authenticated 
   USING (true);
 
 CREATE POLICY "Trainers can manage own questions" 
@@ -133,9 +132,8 @@ CREATE TABLE IF NOT EXISTS public.quizzes (
 -- RLS for Quizzes
 ALTER TABLE public.quizzes ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Quizzes viewable by authenticated users" 
+CREATE POLICY "Allow all to view quizzes" 
   ON public.quizzes FOR SELECT 
-  TO authenticated 
   USING (true);
 
 CREATE POLICY "Trainers can manage own quizzes" 
@@ -151,6 +149,17 @@ CREATE TABLE IF NOT EXISTS public.quiz_questions (
   sort_order INT DEFAULT 0,
   UNIQUE (quiz_id, question_id)
 );
+
+ALTER TABLE public.quiz_questions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all to view quiz questions" 
+  ON public.quiz_questions FOR SELECT 
+  USING (true);
+
+CREATE POLICY "Trainers can manage quiz questions" 
+  ON public.quiz_questions FOR ALL 
+  TO authenticated 
+  USING (true);
 
 -- 7. LIVE SESSIONS
 CREATE TABLE IF NOT EXISTS public.live_sessions (
