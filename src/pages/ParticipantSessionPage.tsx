@@ -45,15 +45,16 @@ export const ParticipantSessionPage: React.FC = () => {
         try {
           const { questions: qList } = await quizService.getQuizById(session.quiz_id);
           if (!isCancelled) {
-            setQuestions(qList);
-            // If questions are still empty, retry in 2.5 seconds
-            if (qList.length === 0) {
-              timer = setTimeout(fetchQuestions, 2500);
+            if (qList && qList.length > 0) {
+              setQuestions(qList);
+            } else {
+              // If questions are still empty, retry in 1.5 seconds
+              timer = setTimeout(fetchQuestions, 1500);
             }
           }
         } catch {
           if (!isCancelled) {
-            timer = setTimeout(fetchQuestions, 3000);
+            timer = setTimeout(fetchQuestions, 2000);
           }
         }
       }
@@ -65,7 +66,7 @@ export const ParticipantSessionPage: React.FC = () => {
       isCancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [session?.quiz_id]);
+  }, [session?.quiz_id, session?.status]);
 
   // Detect status change from waiting → in_progress to trigger countdown
   useEffect(() => {

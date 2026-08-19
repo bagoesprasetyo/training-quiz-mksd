@@ -7,6 +7,7 @@ import { AnimatedBackground } from '../../components/game/AnimatedBackground';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { liveQuizEngineService } from '../../services/liveQuizEngineService';
+import { quizService } from '../../services/quizService';
 import { useLiveSessionStore } from '../../store/liveSessionStore';
 import type { Question, QuestionOption } from '../../types';
 
@@ -31,6 +32,7 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
   const { play } = useSoundEffects();
   const reducedMotion = useReducedMotion();
 
+  const [activeQuestions, setActiveQuestions] = useState<Question[]>(quizQuestions);
   const [phase, setPhase] = useState<QuestionPhase>('answering');
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,11 +42,41 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
   const [prevTotalScore, setPrevTotalScore] = useState(0);
   const prevIndexRef = useRef<number>(-1);
 
+  // Sync activeQuestions with incoming props
+  useEffect(() => {
+    if (quizQuestions && quizQuestions.length > 0) {
+      setActiveQuestions(quizQuestions);
+    }
+  }, [quizQuestions]);
+
+  // Fallback auto-fetch if questions are empty
+  useEffect(() => {
+    if (activeQuestions.length === 0 && session?.quiz_id) {
+      quizService.getQuizById(session.quiz_id).then(({ questions }) => {
+        if (questions && questions.length > 0) {
+          setActiveQuestions(questions);
+        }
+      }).catch(() => {});
+    }
+  }, [activeQuestions.length, session?.quiz_id]);
+
+  const effectiveQuestions = activeQuestions.length > 0 ? activeQuestions : quizQuestions;
   const currentIndex = session?.current_question_index || 0;
-  const currentQ = quizQuestions[currentIndex] || quizQuestions[0];
+  const currentQ = effectiveQuestions[currentIndex] || effectiveQuestions[0];
   const options = currentQ?.options || [];
-  const totalQuestions = quizQuestions.length;
+  const totalQuestions = effectiveQuestions.length;
   const progress = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
+
+  // Log current question
+  useEffect(() => {
+    if (currentQ?.id) {
+      console.log({
+        event: 'CURRENT_QUESTION',
+        currentQuestionId: currentQ.id,
+        currentQuestionIndex: currentIndex,
+      });
+    }
+  }, [currentQ?.id, currentIndex]);
 
   // Reset state when question changes (trainer advances)
   useEffect(() => {

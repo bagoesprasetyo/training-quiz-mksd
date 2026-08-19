@@ -139,16 +139,33 @@ export const liveSessionService = {
   },
 
   async startQuizSession(sessionId: string): Promise<void> {
-    const { error } = await supabase
+    console.log({
+      event: 'START_QUIZ',
+      sessionId,
+      status: 'in_progress',
+      currentQuestionIndex: 0,
+    });
+
+    const { data: updatedSession, error } = await supabase
       .from('live_sessions')
       .update({
         status: 'in_progress',
         current_question_index: 0,
         current_question_start_time: new Date().toISOString(),
       })
-      .eq('id', sessionId);
+      .eq('id', sessionId)
+      .select('*, quiz:quizzes(*)')
+      .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error in startQuizSession:', error);
+      throw error;
+    }
+
+    console.log({
+      event: 'SESSION_UPDATED',
+      session: updatedSession,
+    });
   },
 
   async endLiveSession(sessionId: string): Promise<void> {
@@ -188,10 +205,10 @@ export const liveSessionService = {
 
     channel.subscribe();
 
-    // 1.2-second Polling fallback for 100% sync
+    // 1-second Polling fallback for 100% sync
     const pollInterval = setInterval(() => {
       this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
-    }, 1200);
+    }, 1000);
 
     return () => {
       clearInterval(pollInterval);
@@ -217,17 +234,21 @@ export const liveSessionService = {
           schema: 'public',
           table: 'live_sessions',
         },
-        () => {
-          this.getSessionById(sessionId).then(onStateChange).catch(() => {});
+        (payload) => {
+          console.log({ event: 'REALTIME_SESSION_UPDATE', payload });
+          this.getSessionById(sessionId).then((session) => {
+            console.log({ event: 'CURRENT_QUESTION', currentQuestionIndex: session.current_question_index });
+            onStateChange(session);
+          }).catch(() => {});
         }
       );
 
     channel.subscribe();
 
-    // 1.2-second Polling fallback for guaranteed state sync
+    // 1-second Polling fallback for guaranteed state sync
     const pollInterval = setInterval(() => {
       this.getSessionById(sessionId).then(onStateChange).catch(() => {});
-    }, 1200);
+    }, 1000);
 
     return () => {
       clearInterval(pollInterval);

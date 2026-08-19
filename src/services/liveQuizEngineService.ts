@@ -92,16 +92,32 @@ export const liveQuizEngineService = {
   },
 
   async nextQuestion(sessionId: string, newIndex: number): Promise<void> {
-    const { error } = await supabase
+    console.log({
+      event: 'NEXT_QUESTION',
+      sessionId,
+      currentQuestionIndex: newIndex,
+    });
+
+    const { data: updatedSession, error } = await supabase
       .from('live_sessions')
       .update({
         current_question_index: newIndex,
         current_question_start_time: new Date().toISOString(),
         status: 'in_progress',
       })
-      .eq('id', sessionId);
+      .eq('id', sessionId)
+      .select('*, quiz:quizzes(*)')
+      .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error in nextQuestion:', error);
+      throw error;
+    }
+
+    console.log({
+      event: 'SESSION_UPDATED',
+      session: updatedSession,
+    });
   },
 
   async pauseSession(sessionId: string): Promise<void> {
