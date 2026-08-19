@@ -240,8 +240,17 @@ export const liveSessionService = {
     sessionId: string,
     onParticipantChange: (participants: SessionParticipant[]) => void
   ) {
+    let lastJson = '';
+    const safeNotify = (list: SessionParticipant[]) => {
+      const json = JSON.stringify(list.map(p => ({ id: p.id, score: p.total_score, online: p.is_online, correct: p.correct_count })));
+      if (json !== lastJson) {
+        lastJson = json;
+        onParticipantChange(list);
+      }
+    };
+
     // Initial fetch
-    this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
+    this.getParticipants(sessionId).then(safeNotify).catch(() => {});
 
     const channelId = `participants:${sessionId}:${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
@@ -252,18 +261,19 @@ export const liveSessionService = {
           event: '*',
           schema: 'public',
           table: 'session_participants',
+          filter: `session_id=eq.${sessionId}`,
         },
         () => {
-          this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
+          this.getParticipants(sessionId).then(safeNotify).catch(() => {});
         }
       );
 
     channel.subscribe();
 
-    // 1-second Polling fallback for 100% sync
+    // 2-second Polling fallback for guaranteed participant list sync
     const pollInterval = setInterval(() => {
-      this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
-    }, 1000);
+      this.getParticipants(sessionId).then(safeNotify).catch(() => {});
+    }, 2000);
 
     return () => {
       clearInterval(pollInterval);
@@ -276,8 +286,18 @@ export const liveSessionService = {
     sessionId: string,
     onStateChange: (session: LiveSession) => void
   ) {
+    let lastStateKey = '';
+    const safeNotify = (s: LiveSession) => {
+      if (!s) return;
+      const key = `${s.id}:${s.status}:${s.current_question_index}:${s.current_question_start_time || ''}:${s.ended_at || ''}`;
+      if (key !== lastStateKey) {
+        lastStateKey = key;
+        onStateChange(s);
+      }
+    };
+
     // Initial fetch
-    this.getSessionById(sessionId).then(onStateChange).catch(() => {});
+    this.getSessionById(sessionId).then(safeNotify).catch(() => {});
 
     const channelId = `session_state:${sessionId}:${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
@@ -288,22 +308,23 @@ export const liveSessionService = {
           event: '*',
           schema: 'public',
           table: 'live_sessions',
+          filter: `id=eq.${sessionId}`,
         },
         (payload) => {
           console.log({ event: 'REALTIME_SESSION_UPDATE', payload });
           this.getSessionById(sessionId).then((session) => {
             console.log({ event: 'CURRENT_QUESTION', currentQuestionIndex: session.current_question_index });
-            onStateChange(session);
+            safeNotify(session);
           }).catch(() => {});
         }
       );
 
     channel.subscribe();
 
-    // 1-second Polling fallback for guaranteed state sync
+    // 2-second Polling fallback for guaranteed state sync
     const pollInterval = setInterval(() => {
-      this.getSessionById(sessionId).then(onStateChange).catch(() => {});
-    }, 1000);
+      this.getSessionById(sessionId).then(safeNotify).catch(() => {});
+    }, 2000);
 
     return () => {
       clearInterval(pollInterval);

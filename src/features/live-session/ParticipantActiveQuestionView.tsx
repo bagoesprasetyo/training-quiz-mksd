@@ -157,7 +157,7 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
 
   if (!session) return null;
 
-  if (quizQuestions.length === 0) {
+  if (effectiveQuestions.length === 0) {
     return (
       <AnimatedBackground variant="blue">
         <div className="min-h-screen flex items-center justify-center p-4">
