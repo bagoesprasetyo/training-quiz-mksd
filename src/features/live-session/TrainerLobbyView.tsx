@@ -15,6 +15,7 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { QRCodeDisplay } from '../../components/ui/QRCodeDisplay';
 import { useLiveSessionStore } from '../../store/liveSessionStore';
+import { AnimatedNumber } from '../../components/game/AnimatedNumber';
 
 export const TrainerLobbyView: React.FC = () => {
   const { session, participants, startQuiz } = useLiveSessionStore();
@@ -125,7 +126,7 @@ export const TrainerLobbyView: React.FC = () => {
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-[#0000FF]" />
             <h2 className="text-lg font-extrabold text-slate-900">
-              Joined Participants ({participants.length})
+              Joined Participants (<AnimatedNumber value={participants.length} duration={0.3} />)
             </h2>
           </div>
           <span className="text-xs text-slate-400 font-medium">Updates in real-time</span>

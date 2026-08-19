@@ -1,7 +1,8 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy } from 'lucide-react';
-import { Card } from '../../components/ui/Card';
+import { AnimatedNumber } from '../../components/game/AnimatedNumber';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import type { SessionParticipant } from '../../types';
 
 interface LiveLeaderboardViewProps {
@@ -9,10 +10,16 @@ interface LiveLeaderboardViewProps {
   totalQuestions?: number;
 }
 
-export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({ 
+/**
+ * Live leaderboard with Framer Motion layout animations.
+ * Spec 72: Animated ranking cards that move to new positions when rankings change.
+ */
+export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
   participants,
-  totalQuestions = 10 
+  totalQuestions = 10,
 }) => {
+  const reducedMotion = useReducedMotion();
+
   const sorted = [...(participants || [])].sort((a, b) => {
     const scoreA = a?.total_score || 0;
     const scoreB = b?.total_score || 0;
@@ -24,6 +31,18 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
     if (correctB !== correctA) return correctB - correctA;
     return timeA - timeB;
   });
+
+  const rankEmojis = ['🥇', '🥈', '🥉'];
+  const rankStyles = [
+    'bg-gradient-to-r from-amber-50 to-amber-100/80 border-amber-400 shadow-amber-200/50',
+    'bg-gradient-to-r from-slate-100 to-slate-50 border-slate-400 shadow-slate-200/50',
+    'bg-gradient-to-r from-amber-800/10 to-amber-50 border-amber-600/40 shadow-amber-200/30',
+  ];
+  const rankBadgeStyles = [
+    'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30',
+    'bg-gradient-to-br from-slate-300 to-slate-500 text-white shadow-lg shadow-slate-400/30',
+    'bg-gradient-to-br from-amber-600 to-amber-800 text-white shadow-lg shadow-amber-700/30',
+  ];
 
   return (
     <div className="space-y-4">
@@ -38,46 +57,40 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
       </div>
 
       <div className="space-y-2.5">
-        {sorted.map((p, idx) => {
-          const rank = idx + 1;
-          const accuracy = totalQuestions > 0 ? Math.round(((p?.correct_count || 0) / totalQuestions) * 100) : 0;
+        <AnimatePresence>
+          {sorted.map((p, idx) => {
+            const rank = idx + 1;
+            const accuracy = totalQuestions > 0 ? Math.round(((p?.correct_count || 0) / totalQuestions) * 100) : 0;
+            const isTop3 = rank <= 3;
 
-          return (
-            <motion.div
-              key={p.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            >
-              <Card className={`
-                p-4 flex items-center justify-between gap-4 border-2 transition-all
-                ${rank === 1 
-                  ? 'bg-amber-50/60 border-amber-400 shadow-md' 
-                  : rank === 2 
-                  ? 'bg-slate-100/80 border-slate-300' 
-                  : rank === 3 
-                  ? 'bg-amber-900/10 border-amber-600/40' 
-                  : 'bg-white border-slate-200'
-                }
-              `}>
+            return (
+              <motion.div
+                key={p.id}
+                layout={!reducedMotion}
+                layoutId={p.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{
+                  layout: { type: 'spring', stiffness: 350, damping: 30 },
+                  opacity: { duration: 0.2 },
+                }}
+                className={`
+                  p-4 rounded-2xl border-2 flex items-center justify-between gap-4 transition-colors
+                  ${isTop3 ? rankStyles[idx] : 'bg-white border-slate-200 hover:border-slate-300'}
+                  ${isTop3 ? 'shadow-md' : 'shadow-xs'}
+                `}
+              >
                 <div className="flex items-center gap-3.5 min-w-0">
-                  {/* Rank Badge */}
+                  {/* Rank badge */}
                   <div className={`
-                    w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shrink-0 shadow-xs
-                    ${rank === 1 
-                      ? 'bg-amber-500 text-white' 
-                      : rank === 2 
-                      ? 'bg-slate-400 text-white' 
-                      : rank === 3 
-                      ? 'bg-amber-700 text-white' 
-                      : 'bg-slate-100 text-slate-700'
-                    }
+                    w-10 h-10 rounded-xl font-black text-sm flex items-center justify-center shrink-0
+                    ${isTop3 ? rankBadgeStyles[idx] : 'bg-slate-100 text-slate-600 border border-slate-200'}
                   `}>
-                    {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank}
+                    {isTop3 ? rankEmojis[idx] : rank}
                   </div>
 
-                  {/* Participant Info */}
+                  {/* Participant info */}
                   <div className="truncate">
                     <p className="font-extrabold text-slate-900 text-sm truncate flex items-center gap-2">
                       {p.nickname}
@@ -93,16 +106,21 @@ export const LiveLeaderboardView: React.FC<LiveLeaderboardViewProps> = ({
                   </div>
                 </div>
 
-                {/* Score */}
+                {/* Score with animated number */}
                 <div className="text-right shrink-0">
-                  <p className="font-black text-lg text-[#0000FF] tracking-tight">
-                    {(p?.total_score || 0).toLocaleString()} <span className="text-xs font-semibold text-slate-400">pts</span>
+                  <p className="font-black text-lg text-blue-600 tracking-tight">
+                    <AnimatedNumber
+                      value={p?.total_score || 0}
+                      duration={0.5}
+                      formatFn={(n) => n.toLocaleString()}
+                    />
+                    <span className="text-xs font-semibold text-slate-400 ml-1">pts</span>
                   </p>
                 </div>
-              </Card>
-            </motion.div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Play, 
   Pause, 
   SkipForward, 
-  BarChart3 
+  BarChart3,
+  Trophy,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { SynchronizedTimer } from '../../components/ui/SynchronizedTimer';
+import { LiveLeaderboardView } from '../leaderboard/LiveLeaderboardView';
 import { useLiveSessionStore } from '../../store/liveSessionStore';
 import { liveQuizEngineService } from '../../services/liveQuizEngineService';
 import { liveSessionService } from '../../services/liveSessionService';
@@ -23,6 +28,7 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
   const { session, participants } = useLiveSessionStore();
   const { showToast } = useToast();
   const [answers, setAnswers] = useState<ParticipantAnswer[]>([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   if (!session) return null;
 
@@ -108,6 +114,16 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="md"
+            className="font-bold"
+            leftIcon={showLeaderboard ? <EyeOff className="w-4 h-4" /> : <Trophy className="w-4 h-4 text-amber-500" />}
+            onClick={() => setShowLeaderboard(!showLeaderboard)}
+          >
+            {showLeaderboard ? 'Hide Board' : 'Leaderboard'}
+          </Button>
+
           <Button
             variant="outline"
             size="md"
@@ -229,9 +245,11 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
 
                   {/* Progress Fill */}
                   <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-500 ${isCorrect ? 'bg-emerald-500' : 'bg-[#0000FF]'}`}
-                      style={{ width: `${percent}%` }}
+                    <motion.div 
+                      className={`h-full rounded-full ${isCorrect ? 'bg-emerald-500' : 'bg-[#0000FF]'}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percent}%` }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
                     />
                   </div>
                 </div>
@@ -240,6 +258,13 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
           </div>
         </div>
       </Card>
+
+      {/* Live Leaderboard Panel (Spec 73) */}
+      {showLeaderboard && (
+        <Card className="p-6 border-2 border-amber-200 bg-amber-50/30 shadow-elevated">
+          <LiveLeaderboardView participants={participants} totalQuestions={quizQuestions.length} />
+        </Card>
+      )}
     </div>
   );
 };
