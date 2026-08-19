@@ -54,12 +54,14 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            {/* Public Routes WITHOUT Navbar */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+
             {/* Public Routes with Navbar */}
             <Route element={<RootLayout />}>
-              <Route path="/" element={<LandingPage />} />
               <Route path="/join" element={<ParticipantJoinPage />} />
               <Route path="/join/:sessionId" element={<ParticipantJoinPage />} />
-              <Route path="/login" element={<LoginPage />} />
               <Route path="/session/:sessionId" element={<ParticipantSessionPage />} />
             </Route>
 
