@@ -1,7 +1,6 @@
 import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RootLayout } from './layouts/RootLayout';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { useAuthStore } from './store/authStore';
 import { ToastProvider } from './components/ui/ToastProvider';
@@ -54,16 +53,12 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Public Routes WITHOUT Navbar */}
+            {/* Public Standalone Routes WITHOUT Navbar (Landing, Login, Participant Game View) */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
-
-            {/* Public Routes with Navbar */}
-            <Route element={<RootLayout />}>
-              <Route path="/join" element={<ParticipantJoinPage />} />
-              <Route path="/join/:sessionId" element={<ParticipantJoinPage />} />
-              <Route path="/session/:sessionId" element={<ParticipantSessionPage />} />
-            </Route>
+            <Route path="/join" element={<ParticipantJoinPage />} />
+            <Route path="/join/:sessionId" element={<ParticipantJoinPage />} />
+            <Route path="/session/:sessionId" element={<ParticipantSessionPage />} />
 
             {/* Standalone Live Session Routes */}
             <Route path="/live/:sessionId" element={<LiveSessionPage />} />

@@ -98,39 +98,7 @@ export const quizService = {
       console.warn('Error fetching via quiz_questions:', err);
     }
 
-    // 3. Fallback: Check if questions directly exist in questions table
-    if (questions.length === 0) {
-      try {
-        const { data: directQs } = await supabase
-          .from('questions')
-          .select('*')
-          .order('created_at', { ascending: true })
-          .limit(20);
-
-        if (directQs && directQs.length > 0) {
-          const qIds = directQs.map((q: any) => q.id);
-          const { data: optData } = await supabase
-            .from('question_options')
-            .select('*')
-            .in('question_id', qIds);
-
-          const optionsMap: Record<string, QuestionOption[]> = {};
-          (optData || []).forEach((opt: any) => {
-            if (!optionsMap[opt.question_id]) optionsMap[opt.question_id] = [];
-            optionsMap[opt.question_id].push(opt);
-          });
-
-          questions = directQs.map((q: any) => ({
-            ...q,
-            options: (optionsMap[q.id] || []).sort((a: QuestionOption, b: QuestionOption) => (a.sort_order || 0) - (b.sort_order || 0)),
-          }));
-        }
-      } catch (err) {
-        console.warn('Error in questions fallback:', err);
-      }
-    }
-
-    // 4. Local draft recovery (for Trainer side)
+    // 3. Local draft recovery (if Trainer side has unsynced draft)
     if (questions.length === 0) {
       try {
         const localDraft = localStorage.getItem(`draft_quiz_${quizId}`);
