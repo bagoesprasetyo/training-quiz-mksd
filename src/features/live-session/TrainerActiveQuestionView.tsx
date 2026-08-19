@@ -29,6 +29,22 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
   const [answers, setAnswers] = useState<ParticipantAnswer[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
+  const currentIndex = session?.current_question_index || 0;
+  const currentQ = quizQuestions[currentIndex] || quizQuestions[0];
+  const isLastQuestion = quizQuestions.length > 0 ? currentIndex >= quizQuestions.length - 1 : false;
+
+  useEffect(() => {
+    let unsub: (() => void) | undefined;
+    if (session && currentQ) {
+      unsub = liveQuizEngineService.subscribeToAnswers(session.id, currentQ.id, (data) => {
+        setAnswers(data);
+      });
+    }
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [session?.id, currentQ?.id]);
+
   if (!session) return null;
 
   if (quizQuestions.length === 0) {
@@ -54,22 +70,6 @@ export const TrainerActiveQuestionView: React.FC<TrainerActiveQuestionViewProps>
       </Card>
     );
   }
-
-  const currentIndex = session.current_question_index || 0;
-  const currentQ = quizQuestions[currentIndex] || quizQuestions[0];
-  const isLastQuestion = currentIndex >= quizQuestions.length - 1;
-
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    if (session && currentQ) {
-      unsub = liveQuizEngineService.subscribeToAnswers(session.id, currentQ.id, (data) => {
-        setAnswers(data);
-      });
-    }
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [session?.id, currentQ?.id]);
 
   const answeredCount = answers.length;
   const waitingCount = Math.max(0, participants.length - answeredCount);

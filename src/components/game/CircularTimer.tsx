@@ -26,16 +26,33 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const reducedMotion = useReducedMotion();
   const [timeLeft, setTimeLeft] = useState(timeLimitSeconds);
   const [expired, setExpired] = useState(false);
+  const [localMountMs, setLocalMountMs] = useState(() => Date.now());
 
-  const calculateRemaining = useCallback(() => {
-    if (!startTimeIso) return timeLimitSeconds;
-    const startMs = new Date(startTimeIso).getTime();
-    const elapsed = Math.floor((Date.now() - startMs) / 1000);
-    return Math.max(0, timeLimitSeconds - elapsed);
+  // Reset timer on question or start time change
+  useEffect(() => {
+    setExpired(false);
+    setTimeLeft(timeLimitSeconds);
+    setLocalMountMs(Date.now());
   }, [startTimeIso, timeLimitSeconds]);
 
+  const calculateRemaining = useCallback(() => {
+    if (startTimeIso) {
+      const startMs = new Date(startTimeIso).getTime();
+      if (!isNaN(startMs)) {
+        const elapsed = Math.floor((Date.now() - startMs) / 1000);
+        // Only use server timestamp if it's within a reasonable window (0 to timeLimitSeconds)
+        if (elapsed >= 0 && elapsed <= timeLimitSeconds) {
+          return Math.max(0, timeLimitSeconds - elapsed);
+        }
+      }
+    }
+    // Fallback to local mount duration
+    const localElapsed = Math.floor((Date.now() - localMountMs) / 1000);
+    return Math.max(0, timeLimitSeconds - localElapsed);
+  }, [startTimeIso, timeLimitSeconds, localMountMs]);
+
   useEffect(() => {
-    if (!startTimeIso || isPaused) return;
+    if (isPaused) return;
 
     const tick = () => {
       const remaining = calculateRemaining();
@@ -51,13 +68,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
     tick();
     const interval = setInterval(tick, 250);
     return () => clearInterval(interval);
-  }, [startTimeIso, timeLimitSeconds, isPaused, calculateRemaining, onExpire, onTick, expired]);
-
-  // Reset expired state when question changes
-  useEffect(() => {
-    setExpired(false);
-    setTimeLeft(timeLimitSeconds);
-  }, [startTimeIso, timeLimitSeconds]);
+  }, [isPaused, calculateRemaining, onExpire, onTick, expired]);
 
   const percentage = timeLimitSeconds > 0 ? timeLeft / timeLimitSeconds : 0;
   const isLow = timeLeft <= 5 && timeLeft > 0;

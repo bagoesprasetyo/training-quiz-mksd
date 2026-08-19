@@ -102,10 +102,11 @@ export const liveQuizEngineService = {
     questionId: string,
     onAnswersChange: (answers: ParticipantAnswer[]) => void
   ) {
-    this.getAnswersForQuestion(sessionId, questionId).then(onAnswersChange);
+    this.getAnswersForQuestion(sessionId, questionId).then(onAnswersChange).catch(() => {});
 
+    const channelId = `answers:${sessionId}:${questionId}:${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
-      .channel(`answers:${sessionId}:${questionId}`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         {
@@ -115,10 +116,11 @@ export const liveQuizEngineService = {
           filter: `session_id=eq.${sessionId}`,
         },
         () => {
-          this.getAnswersForQuestion(sessionId, questionId).then(onAnswersChange);
+          this.getAnswersForQuestion(sessionId, questionId).then(onAnswersChange).catch(() => {});
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);

@@ -171,8 +171,9 @@ export const liveSessionService = {
     // Initial fetch
     this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
 
+    const channelId = `participants:${sessionId}:${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
-      .channel(`participants:${sessionId}`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         {
@@ -183,8 +184,9 @@ export const liveSessionService = {
         () => {
           this.getParticipants(sessionId).then(onParticipantChange).catch(() => {});
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe();
 
     // 1.2-second Polling fallback for 100% sync
     const pollInterval = setInterval(() => {
@@ -205,8 +207,9 @@ export const liveSessionService = {
     // Initial fetch
     this.getSessionById(sessionId).then(onStateChange).catch(() => {});
 
+    const channelId = `session_state:${sessionId}:${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const channel = supabase
-      .channel(`session_state:${sessionId}`)
+      .channel(channelId)
       .on(
         'postgres_changes',
         {
@@ -217,8 +220,9 @@ export const liveSessionService = {
         () => {
           this.getSessionById(sessionId).then(onStateChange).catch(() => {});
         }
-      )
-      .subscribe();
+      );
+
+    channel.subscribe();
 
     // 1.2-second Polling fallback for guaranteed state sync
     const pollInterval = setInterval(() => {

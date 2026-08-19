@@ -40,35 +40,11 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
   const [prevTotalScore, setPrevTotalScore] = useState(0);
   const prevIndexRef = useRef<number>(-1);
 
-  if (!session) return null;
-
-  if (quizQuestions.length === 0) {
-    return (
-      <AnimatedBackground variant="blue">
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/90 backdrop-blur-xl rounded-3xl border-2 border-amber-200 p-8 text-center space-y-4 max-w-md w-full shadow-xl"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto font-bold text-2xl">
-              ⏳
-            </div>
-            <h3 className="text-lg font-black text-slate-900">Menunggu Pertanyaan Kuis...</h3>
-            <p className="text-xs text-slate-600 font-semibold leading-relaxed">
-              Trainer belum mengunggah pertanyaan untuk kuis ini. Pertanyaan akan muncul otomatis.
-            </p>
-          </motion.div>
-        </div>
-      </AnimatedBackground>
-    );
-  }
-
-  const currentIndex = session.current_question_index || 0;
+  const currentIndex = session?.current_question_index || 0;
   const currentQ = quizQuestions[currentIndex] || quizQuestions[0];
-  const options = currentQ.options || [];
+  const options = currentQ?.options || [];
   const totalQuestions = quizQuestions.length;
-  const progress = ((currentIndex + 1) / totalQuestions) * 100;
+  const progress = totalQuestions > 0 ? ((currentIndex + 1) / totalQuestions) * 100 : 0;
 
   // Reset state when question changes (trainer advances)
   useEffect(() => {
@@ -86,7 +62,7 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
   }, [currentIndex, currentParticipant?.total_score, play]);
 
   const handleSelectOption = useCallback(async (option: QuestionOption) => {
-    if (phase !== 'answering' || isSubmitting || !session || !currentParticipant) return;
+    if (phase !== 'answering' || isSubmitting || !session || !currentParticipant || !currentQ) return;
 
     try {
       setIsSubmitting(true);
@@ -146,6 +122,30 @@ export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionVi
       play('tick');
     }
   }, [phase, play]);
+
+  if (!session) return null;
+
+  if (quizQuestions.length === 0) {
+    return (
+      <AnimatedBackground variant="blue">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white/90 backdrop-blur-xl rounded-3xl border-2 border-amber-200 p-8 text-center space-y-4 max-w-md w-full shadow-xl"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto font-bold text-2xl">
+              ⏳
+            </div>
+            <h3 className="text-lg font-black text-slate-900">Menunggu Pertanyaan Kuis...</h3>
+            <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+              Trainer belum mengunggah pertanyaan untuk kuis ini. Pertanyaan akan muncul otomatis.
+            </p>
+          </motion.div>
+        </div>
+      </AnimatedBackground>
+    );
+  }
 
   // Answer option color coding
   const optionColors = [
