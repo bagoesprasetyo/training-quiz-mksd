@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Users, Radio, Clock, BarChart3 } from 'lucide-react';
+import { Sparkles, Users, Radio } from 'lucide-react';
 import { QRCodeDisplay } from '../../components/ui/QRCodeDisplay';
 import { AnimatedBackground } from '../../components/game/AnimatedBackground';
 import { AnimatedNumber } from '../../components/game/AnimatedNumber';

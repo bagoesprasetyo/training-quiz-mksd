@@ -31,18 +31,30 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session?.user) {
-        // Fallback to local session if profile was authenticated locally
+        // No active Supabase auth session — check if there's a valid local profile login
         const storedUser = localStorage.getItem('mks_active_user');
         if (storedUser) {
           try {
             const parsed = JSON.parse(storedUser);
-            if (parsed && parsed.email) {
-              set({ user: parsed, loading: false, initialized: true });
-              return parsed;
+            if (parsed && parsed.email && parsed.id) {
+              // Validate: check if this profile still exists and is active in the database
+              const { data: validProfile } = await supabase
+                .from('profiles')
+                .select('id, email, full_name, role, is_active')
+                .eq('id', parsed.id)
+                .eq('is_active', true)
+                .maybeSingle();
+
+              if (validProfile) {
+                set({ user: { ...parsed, ...validProfile }, loading: false, initialized: true });
+                return { ...parsed, ...validProfile };
+              }
             }
           } catch {
-            // ignore
+            // ignore parse errors
           }
+          // Stored user is stale/invalid — clear it
+          localStorage.removeItem('mks_active_user');
         }
         set({ user: null, loading: false, initialized: true });
         return null;
@@ -76,16 +88,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       return userProfile;
     } catch (err) {
       console.error('Error fetching user auth profile:', err);
-      const storedUser = localStorage.getItem('mks_active_user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          set({ user: parsed, loading: false, initialized: true });
-          return parsed;
-        } catch {
-          // ignore
-        }
-      }
+      // On network error, don't trust localStorage blindly — show as logged out
+      localStorage.removeItem('mks_active_user');
       set({ user: null, loading: false, initialized: true });
       return null;
     }

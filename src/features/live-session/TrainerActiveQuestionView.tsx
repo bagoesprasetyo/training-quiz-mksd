@@ -6,7 +6,6 @@ import {
   SkipForward, 
   BarChart3,
   Trophy,
-  Eye,
   EyeOff
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';

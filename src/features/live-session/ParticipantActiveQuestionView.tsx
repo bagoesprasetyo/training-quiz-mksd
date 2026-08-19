@@ -4,7 +4,6 @@ import { CheckCircle2, Lock, XCircle, Zap, ArrowRight } from 'lucide-react';
 import { CircularTimer } from '../../components/game/CircularTimer';
 import { AnimatedNumber } from '../../components/game/AnimatedNumber';
 import { AnimatedBackground } from '../../components/game/AnimatedBackground';
-import { LeaderboardMoment } from '../../components/game/LeaderboardMoment';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { liveQuizEngineService } from '../../services/liveQuizEngineService';
@@ -28,7 +27,7 @@ type QuestionPhase = 'answering' | 'submitted' | 'timeup' | 'reveal' | 'score' |
  * Spec 73: Leaderboard moment between questions.
  */
 export const ParticipantActiveQuestionView: React.FC<ParticipantActiveQuestionViewProps> = ({ quizQuestions }) => {
-  const { session, currentParticipant, participants } = useLiveSessionStore();
+  const { session, currentParticipant } = useLiveSessionStore();
   const { play } = useSoundEffects();
   const reducedMotion = useReducedMotion();
 
