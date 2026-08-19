@@ -106,30 +106,33 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-blue-50/40 via-white to-white relative">
+    <div className="h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-gradient-to-b from-blue-50/40 via-white to-white overflow-hidden relative">
       <motion.div 
-        className="w-full max-w-md"
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+        className="w-full max-w-[430px]"
+        initial={{ opacity: 0, y: 20, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       >
         {/* Top Back Navigation Link */}
-        <div className="mb-4">
+        <div className="mb-3 flex justify-between items-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-black text-slate-600 hover:text-[#0000FF] bg-blue-50/70 hover:bg-blue-100 px-3.5 py-2 rounded-xl border border-blue-100 transition-all"
+            className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600 hover:text-[#0000FF] bg-blue-50/80 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-100 transition-all shadow-sm"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Halaman Utama</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Kembali ke Beranda</span>
           </Link>
+          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
+            Trainer Sign In
+          </span>
         </div>
 
-        <Card className="border-2 border-blue-100 p-8 shadow-elevated bg-white rounded-3xl">
+        <Card className="border-2 border-blue-100 p-6 sm:p-7 shadow-elevated bg-white rounded-3xl">
           
           {/* Brand Logo Header: PT MULTIKARYA SINARDINAMIKA */}
-          <div className="flex flex-col items-center text-center space-y-3 mb-8">
-            <CompanyLogo size="lg" />
-            <div className="pt-2">
+          <div className="flex flex-col items-center text-center space-y-2 mb-5">
+            <CompanyLogo size="md" />
+            <div className="pt-1">
               <h2 className="text-xl font-black text-slate-900">Portal Sign In</h2>
               <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
                 For Trainers & System Administrators
@@ -138,13 +141,17 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-600 font-bold flex items-center gap-2">
+            <motion.div 
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-600 font-bold flex items-center gap-2"
+            >
               <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
               <span>{error}</span>
-            </div>
+            </motion.div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-4">
             <Input
               label="Work Email"
               type="email"
@@ -169,7 +176,7 @@ export const LoginPage: React.FC = () => {
               type="submit" 
               variant="primary" 
               size="lg" 
-              className="w-full font-extrabold py-3.5 shadow-lg shadow-blue-500/20"
+              className="w-full font-extrabold py-3 shadow-md shadow-blue-500/25 mt-1"
               isLoading={loading}
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
@@ -178,19 +185,11 @@ export const LoginPage: React.FC = () => {
           </form>
 
           {/* Security Note & Home Link */}
-          <div className="mt-8 pt-6 border-t border-blue-100 text-center space-y-3">
-            <p className="text-xs text-slate-500 flex items-center justify-center gap-1.5 font-bold">
-              <ShieldCheck className="w-4 h-4 text-[#0000FF]" />
+          <div className="mt-5 pt-4 border-t border-blue-100 text-center">
+            <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5 font-bold">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#0000FF]" />
               Secured Corporate Training Platform
             </p>
-            <div>
-              <Link 
-                to="/" 
-                className="text-xs font-extrabold text-[#0000FF] hover:underline"
-              >
-                ← Kembali ke Beranda Utama
-              </Link>
-            </div>
           </div>
         </Card>
       </motion.div>
