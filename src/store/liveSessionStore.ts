@@ -67,14 +67,28 @@ export const useLiveSessionStore = create<LiveSessionState>((set, get) => ({
       set({ session: sessionData });
 
       // Load stored participant info from sessionStorage
+      let participantObj: SessionParticipant | null = null;
       const stored = sessionStorage.getItem('participant_info');
       if (stored) {
-        set({ currentParticipant: JSON.parse(stored) });
+        try {
+          participantObj = JSON.parse(stored);
+          set({ currentParticipant: participantObj });
+        } catch {
+          // ignore
+        }
       }
 
       // Load initial participants
       const initialParticipants = await liveSessionService.getParticipants(sessionData.id);
-      set({ participants: initialParticipants, loading: false });
+      let updatedCurrent = participantObj;
+      if (participantObj) {
+        const found = initialParticipants.find((p) => p.id === participantObj?.id);
+        if (found) {
+          updatedCurrent = found;
+          sessionStorage.setItem('participant_info', JSON.stringify(found));
+        }
+      }
+      set({ participants: initialParticipants, currentParticipant: updatedCurrent, loading: false });
 
       // Subscribe to session state
       const unsubState = liveSessionService.subscribeToSessionState(
@@ -82,10 +96,22 @@ export const useLiveSessionStore = create<LiveSessionState>((set, get) => ({
         (updatedSession) => set({ session: updatedSession, loading: false })
       );
 
-      // Subscribe to participant count
+      // Subscribe to participants realtime updates
       const unsubParticipants = liveSessionService.subscribeToParticipants(
         sessionData.id,
-        (participants) => set({ participants, loading: false })
+        (participants) => {
+          const { currentParticipant } = get();
+          let current = currentParticipant;
+          if (current?.id) {
+            const targetId = current.id;
+            const found = participants.find((p) => p.id === targetId);
+            if (found) {
+              current = found;
+              sessionStorage.setItem('participant_info', JSON.stringify(found));
+            }
+          }
+          set({ participants, currentParticipant: current, loading: false });
+        }
       );
 
       return () => {

@@ -6,6 +6,7 @@ import { AnimatedBackground } from '../../components/game/AnimatedBackground';
 import { AnimatedNumber } from '../../components/game/AnimatedNumber';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
+import { supabase } from '../../services/supabase';
 import type { SessionParticipant, LiveSession } from '../../types';
 
 interface ParticipantResultViewProps {
@@ -28,8 +29,35 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
   const reducedMotion = useReducedMotion();
   const { play } = useSoundEffects();
   const [showDetails, setShowDetails] = useState(false);
+  const [liveParticipant, setLiveParticipant] = useState<SessionParticipant | null>(
+    (allParticipants || []).find((p) => p.id === currentParticipant?.id) || currentParticipant
+  );
 
-  if (!currentParticipant) return null;
+  // Sync with allParticipants or fetch fresh from Supabase on mount
+  useEffect(() => {
+    const found = (allParticipants || []).find((p) => p.id === currentParticipant?.id);
+    if (found) {
+      setLiveParticipant(found);
+    }
+  }, [allParticipants, currentParticipant?.id]);
+
+  useEffect(() => {
+    if (currentParticipant?.id) {
+      supabase
+        .from('session_participants')
+        .select('*')
+        .eq('id', currentParticipant.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setLiveParticipant(data);
+          }
+        });
+    }
+  }, [currentParticipant?.id]);
+
+  const activeParticipant = liveParticipant || currentParticipant;
+  if (!activeParticipant) return null;
 
   // Calculate rank
   const sorted = [...(allParticipants || [])].sort((a, b) => {
@@ -44,14 +72,15 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
     return timeA - timeB;
   });
 
-  const rank = sorted.findIndex((p) => p.id === currentParticipant?.id) + 1 || 1;
+  const rank = sorted.findIndex((p) => p.id === activeParticipant?.id) + 1 || 1;
   const total = sorted.length || 1;
 
+  const actualTotal = totalQuestions > 0 ? totalQuestions : 1;
   const passingGrade = session?.quiz?.passing_grade || 70;
-  const accuracy = totalQuestions > 0 ? Math.round(((currentParticipant?.correct_count || 0) / totalQuestions) * 100) : 0;
+  const accuracy = Math.round(((activeParticipant?.correct_count || 0) / actualTotal) * 100);
   const isPassed = accuracy >= passingGrade;
-  const avgTime = (currentParticipant?.correct_count || 0) > 0
-    ? ((currentParticipant?.total_response_time_ms || 0) / totalQuestions / 1000).toFixed(1)
+  const avgTime = (activeParticipant?.correct_count || 0) > 0
+    ? ((activeParticipant?.total_response_time_ms || 0) / actualTotal / 1000).toFixed(1)
     : '0';
 
   // Trigger confetti and sounds on mount
@@ -155,7 +184,7 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
               </span>
               <p className="text-4xl font-black tracking-tight">
                 <AnimatedNumber
-                  value={currentParticipant?.total_score || 0}
+                  value={activeParticipant?.total_score || 0}
                   duration={1.5}
                   formatFn={(n) => n.toLocaleString()}
                 />
@@ -180,7 +209,7 @@ export const ParticipantResultView: React.FC<ParticipantResultViewProps> = ({
                   {
                     icon: <CheckCircle2 className="w-4 h-4 text-emerald-500" />,
                     label: 'Correct',
-                    value: `${currentParticipant?.correct_count || 0} / ${totalQuestions}`,
+                    value: `${activeParticipant?.correct_count || 0} / ${actualTotal}`,
                   },
                   {
                     icon: <Target className="w-4 h-4 text-blue-500" />,
