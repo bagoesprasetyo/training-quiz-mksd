@@ -5,6 +5,8 @@ import { Trophy, Star, Clock, Target, CheckCircle2 } from 'lucide-react';
 import { AnimatedNumber } from '../../components/game/AnimatedNumber';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useLiveSessionStore } from '../../store/liveSessionStore';
+import { liveSessionService } from '../../services/liveSessionService';
 import type { SessionParticipant } from '../../types';
 
 interface FinalRankingRevealViewProps {
@@ -44,10 +46,29 @@ export const FinalRankingRevealView: React.FC<FinalRankingRevealViewProps> = ({
   totalQuestions = 10,
 }) => {
   const [currentPhase, setCurrentPhase] = useState<RevealPhase>('complete');
+  const [liveParticipants, setLiveParticipants] = useState<SessionParticipant[]>(participants || []);
+  const { session } = useLiveSessionStore();
   const { play } = useSoundEffects();
   const reducedMotion = useReducedMotion();
 
-  const sorted = [...(participants || [])].sort((a, b) => {
+  useEffect(() => {
+    if (participants && participants.length > 0) {
+      setLiveParticipants(participants);
+    }
+  }, [participants]);
+
+  useEffect(() => {
+    if (session?.id) {
+      liveSessionService.getParticipants(session.id).then((fresh) => {
+        if (fresh && fresh.length > 0) {
+          setLiveParticipants(fresh);
+        }
+      }).catch(() => {});
+    }
+  }, [session?.id]);
+
+  const targetList = liveParticipants.length > 0 ? liveParticipants : participants;
+  const sorted = [...(targetList || [])].sort((a, b) => {
     const scoreA = a?.total_score || 0;
     const scoreB = b?.total_score || 0;
     const correctA = a?.correct_count || 0;

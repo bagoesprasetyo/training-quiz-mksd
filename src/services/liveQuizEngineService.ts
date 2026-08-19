@@ -11,47 +11,73 @@ export const liveQuizEngineService = {
     responseTimeMs: number,
     isCorrect: boolean,
     pointsEarned: number
-  ): Promise<ParticipantAnswer> {
-    const { data, error } = await supabase
-      .from('participant_answers')
-      .upsert(
-        {
-          session_id: sessionId,
-          participant_id: participantId,
-          question_id: questionId,
-          selected_option_id: selectedOptionId,
-          is_correct: isCorrect,
-          score_earned: pointsEarned,
-          response_time_ms: responseTimeMs,
-          submitted_at: new Date().toISOString(),
-        },
-        { onConflict: 'session_id,participant_id,question_id' }
-      )
-      .select()
-      .single();
+  ): Promise<{ is_correct: boolean; score_earned: number }> {
+    const isOptionCorrect = Boolean(isCorrect);
+    const score = isOptionCorrect ? Number(pointsEarned || 100) : 0;
+    const responseTime = Number(responseTimeMs || 1000);
 
-    if (error) throw error;
+    // 1. Direct Score Accumulation in session_participants FIRST
+    try {
+      const { data: currentParticipant } = await supabase
+        .from('session_participants')
+        .select('total_score, correct_count, wrong_count, total_response_time_ms')
+        .eq('id', participantId)
+        .maybeSingle();
 
-    // Update participant's cumulative score and counts
-    const { data: currentParticipant } = await supabase
-      .from('session_participants')
-      .select('total_score, correct_count, wrong_count, total_response_time_ms')
-      .eq('id', participantId)
-      .single();
+      const newScore = (currentParticipant?.total_score || 0) + score;
+      const newCorrect = (currentParticipant?.correct_count || 0) + (isOptionCorrect ? 1 : 0);
+      const newWrong = (currentParticipant?.wrong_count || 0) + (isOptionCorrect ? 0 : 1);
+      const newTime = (currentParticipant?.total_response_time_ms || 0) + responseTime;
 
-    if (currentParticipant) {
       await supabase
         .from('session_participants')
         .update({
-          total_score: (currentParticipant.total_score || 0) + pointsEarned,
-          correct_count: (currentParticipant.correct_count || 0) + (isCorrect ? 1 : 0),
-          wrong_count: (currentParticipant.wrong_count || 0) + (isCorrect ? 0 : 1),
-          total_response_time_ms: (currentParticipant.total_response_time_ms || 0) + responseTimeMs,
+          total_score: newScore,
+          correct_count: newCorrect,
+          wrong_count: newWrong,
+          total_response_time_ms: newTime,
         })
         .eq('id', participantId);
+    } catch (err) {
+      console.warn('Error updating session_participants score:', err);
     }
 
-    return data;
+    // 2. Safe record in participant_answers without onConflict constraint requirement
+    try {
+      const { data: existingAnswer } = await supabase
+        .from('participant_answers')
+        .select('id')
+        .eq('session_id', sessionId)
+        .eq('participant_id', participantId)
+        .eq('question_id', questionId)
+        .maybeSingle();
+
+      const answerPayload = {
+        session_id: sessionId,
+        participant_id: participantId,
+        question_id: questionId,
+        selected_option_id: selectedOptionId || null,
+        is_correct: isOptionCorrect,
+        score_earned: score,
+        response_time_ms: responseTime,
+        submitted_at: new Date().toISOString(),
+      };
+
+      if (existingAnswer?.id) {
+        await supabase
+          .from('participant_answers')
+          .update(answerPayload)
+          .eq('id', existingAnswer.id);
+      } else {
+        await supabase
+          .from('participant_answers')
+          .insert(answerPayload);
+      }
+    } catch (err) {
+      console.warn('Error recording participant_answer:', err);
+    }
+
+    return { is_correct: isOptionCorrect, score_earned: score };
   },
 
   async getAnswersForQuestion(sessionId: string, questionId: string): Promise<ParticipantAnswer[]> {
